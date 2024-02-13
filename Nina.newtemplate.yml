@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Setup Apache on EC2 instance in the existing VPC with Elastic IP
+
+Parameters:
+  VPCStackName:
+    Type: String
+    Description: Name of the existing VPC stack
+  Region:
+    Type: String
+    Description: AWS region for deployment
+    Default: us-west-2
+    AllowedValues:
+      - us-east-1
+      - us-east-2
+      - us-west-1
+      - us-west-2
+      - ap-south-1
+      - ap-northeast-1
+      - ap-northeast-2
+      - ap-southeast-1
+      - ap-southeast-2
+      - ca-central-1
+      - eu-central-1
+      - eu-west-1
+      - eu-west-2
+      - eu-west-3
+      - sa-east-1
+  InstanceType:
+    Type: String
+    Description: EC2 instance type
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+  
+   
+ 
+Mappings: 
+  RegionMap: 
+      us-east-1:
+         HVM64: ami-0ff8a91507f77f867
+      us-east-2:
+         HVM64: ami-0866a04d72a1f5479
+      us-west-1:
+         HVM64: ami-0bdb828fd58c52235
+      us-west-2:
+         HVM64: ami-0ecb0bb5d6b19457a
+      eu-west-1:
+         HVM64: ami-047bb4163c506cd98
+      eu-west-2:
+         HVM64: ami-0780837dd83465d73
+      eu-west-3:
+         HVM64: ami-06e7d9bed6ecdc388
+      eu-north-1:
+         HVM64: ami-090793d48e56d862c
+      eu-central-1:
+         HVM64: ami-02fe204d17e0189fb
+      ca-central-1:
+         HVM64: ami-09219f22f73652d74
+      ap-south-1:
+         HVM64: ami-0d63de463e6604d0a
+      ap-northeast-3:
+         HVM64: ami-04d7b860b0e08262e
+      ap-northeast-2:
+         HVM64: ami-00ba43a774eb5870b
+      ap-northeast-1:
+         HVM64: ami-06cd52961ce9f0d85
+      ap-southeast-1:
+         HVM64: ami-08569b978cc4dfa10
+      ap-southeast-2:
+         HVM64: ami-03b4905c5f84d954b
+      ap-northeast-1:
+         HVM64: ami-0b193da66bc27147b
+      sa-east-1:
+         HVM64: ami-00dbf01ec2a2a2cc3
+
+Resources: 
+  MyEIP:
+    Type: AWS::EC2::EIP 
+    
+  myENI:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !ImportValue SampleNetworkCrossStack-SubnetID
+      
+  MyEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance 
+      AllocationId: !GetAtt MyEIP.AllocationId
+      NetworkInterfaceId: !Ref myENI
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      
+      SecurityGroupIds:
+        - !ImportValue SampleNetworkCrossStack-SecurityGroupID
+      SubnetId: !ImportValue SampleNetworkCrossStack-SubnetID
+       
+      Tags:
+        - Key: Name
+          Value: "web-instance"          
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          echo "I enjoy learning CloudFormation and DevOps at CloudSpace Academy" > /var/www/html/index.html
+          systemctl start httpd
+          systemctl enable httpd
+
+ 
+         
+
+Outputs:
+  WebsiteURL:
+    Description: URL of the website
+    Value: !GetAtt EC2Instance.PublicDnsName
+  PrivateIPv4Address:
+    Description: Private IPv4 address of the EC2 instance
+    Value: !GetAtt EC2Instance.PrivateIp
+  PrivateDNSName:
+    Description: Private DNS name of the EC2 instance
+    Value: !GetAtt EC2Instance.PrivateDnsName
+
+
+
+
+
+
